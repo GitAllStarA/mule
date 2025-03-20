@@ -1,0 +1,946 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:json="http://www.mulesoft.org/schema/mule/json"
+	xmlns:xml-module="http://www.mulesoft.org/schema/mule/xml-module" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/xml-module http://www.mulesoft.org/schema/mule/xml-module/current/mule-xml-module.xsd">
+	<http:listener-config name="HTTP_Listener_config_weather_api" doc:name="HTTP Listener config" doc:id="124b7e19-7217-4329-9c2f-af07ed5593f2" >
+		<http:listener-connection host="0.0.0.0" port="8082"/>
+	</http:listener-config>
+	<salesforce:sfdc-config name="Salesforce_Config_free_trail_head" doc:name="Salesforce Config" doc:id="3897706f-c5b6-427d-8ea7-e5ef5c33a3b4" >
+		<salesforce:basic-connection username="valti0796@curious-badger-st3kb4.com" password="allIZ1234$" securityToken="BvfO4o3UPPw8Z3tW0gPnTJR5a" url="https://login.salesforce.com/services/Soap/u/60.0" />
+	</salesforce:sfdc-config>
+	<http:listener-config name="HTTP_Listener_config_official" doc:name="HTTP Listener config" doc:id="f90528d5-5b8d-42cc-b2b2-ed950c2f95e9" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<http:request-config name="HTTP_Request_configuration_my_store" doc:name="HTTP Request configuration" doc:id="8407ddc6-bde9-4453-ac9d-90fbaa4a3f7a" basePath="/api" >
+		<http:request-connection host="localhost" port="8090"/>
+	</http:request-config>
+	<db:config name="my_store_db_config" doc:name="Database Config" doc:id="a0efe710-8431-4b36-aa0a-57363d0e8a70" >
+		<db:my-sql-connection host="localhost" port="3307" user="root" password="root123$" database="my_store" />
+	</db:config>
+	<db:config name="my_offline_db_store" doc:name="Database Config" doc:id="943b0fe8-63c7-4988-858a-958b5c0d0781" >
+		<db:my-sql-connection host="localhost" port="3307" user="root" password="root123$" database="my_offline_store" />
+	</db:config>
+	<http:request-config name="backend_engine_azure" doc:name="HTTP Request configuration" doc:id="e28dbc73-ef9c-432b-8c75-50eb4d5ade0f" basePath="/api" >
+		<http:request-connection host="backend-engine-sb-sbmssf.azurewebsites.net" protocol="HTTPS"/>
+	</http:request-config>
+	<flow name="flights" doc:id="ae66017f-7f75-4d41-b316-9bd6a18dc603" >
+		<http:listener doc:name="Listener" doc:id="3312849d-f77b-45ed-995b-6a5a1274eab6" config-ref="HTTP_Listener_config_official" path="/trigger"/>
+		<http:request method="GET" doc:name="Request" doc:id="f48f5972-4f13-4d3c-b460-65a545b65041" url="http://training-american-ws.cloudhub.io:80/api/flights"/>
+	</flow>
+	<flow name="consume_restful_serviceFlow1" doc:id="44e4001a-119a-4741-a1b3-f31c01f2516c" >
+		<http:listener doc:name="ListenerWeatherAPI" doc:id="5e253f9d-c3c3-4896-8466-615613ea3459" config-ref="HTTP_Listener_config_official" path="/get_weather"/>
+		<set-variable value="#[payload.city]" doc:name="cityRB" doc:id="4fc36ef7-1b84-4f0f-a359-e809eebd6cc4" variableName="cityRB"/>
+		<choice doc:name="Choice" doc:id="9990f8fa-0593-4f87-8a84-d9533d2467c6">
+			<when expression='#[vars.cityRB == "Vikranth"]'>
+				<ee:transform doc:name="Transform Message" doc:id="825fec50-5d93-48cc-ba22-76e39b5f6a72" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"hello" : payload.city
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<http:request method="GET" doc:name="Request" doc:id="9376dd26-4028-4c84-9988-3d49f16b0d1f" url="https://api.openweathermap.org/data/2.5/weather">
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	q : vars.cityRB,
+	appid : "bbe371b1ac4b113988463243bb4e4e14"
+}]]]></http:query-params>
+			<http:response-validator>
+				<http:success-status-code-validator values="200..499" />
+			</http:response-validator>
+		</http:request>
+				<choice doc:name="Choice" doc:id="5e894d9d-3005-4dba-9af3-565bc2eb3e7c">
+			<when expression='#[attributes.statusCode as String == "200"]'>
+				<ee:transform doc:name="Transform Message" doc:id="e890e573-f4fa-42b2-a75a-f670f8a602dc">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"city" : vars.cityRB,
+	"min_temp" : payload.main.temp_min as Number - 273.15 as String ++ " celcius",
+	"max_temp" : payload.main.temp_max as Number - 273.15 as String ++ " celcius",
+	"feels_like" : payload.main.feels_like as Number - 273.15 as String ++ " celcius",
+	"humidity" : payload.main.humidity
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="8d10a8f6-03e3-41db-8177-17c82cb9a013">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="scatter_gather" doc:id="214273e4-27b0-4300-9bd7-0e70f5969a9b" >
+		<http:listener doc:name="Listener" doc:id="cca0556a-e5e3-4e36-87cd-3015e7301c9a" config-ref="HTTP_Listener_config_official" path="/get_sng"/>
+		<set-variable value="#[payload]" doc:name="scatterRB" doc:id="51d61d56-baca-4171-82d4-4b61fb51143c" variableName="scatterRB"/>
+		<logger level="INFO" doc:name="Logger" doc:id="a0a3d48d-1648-4cb8-bd00-67ad3039a211" />
+		<choice doc:name="Choice" doc:id="cf4de592-9a55-43a5-9969-95349d098fe8" >
+			<when expression="#[vars.scatterRB.scatter == true]">
+				<scatter-gather doc:name="Scatter-Gather" doc:id="3b60a333-688c-486a-adb6-8db51b3ac5c0">
+			<route>
+				<http:request method="GET" doc:name="request-location-weather" doc:id="0422b149-377c-4f7d-acc6-9baac0c4c5e6" url="https://api.openweathermap.org/data/2.5/weather">
+					<http:query-params><![CDATA[#[output application/java
+---
+{
+	q : vars.scatterRB.city,
+	appid : vars.scatterRB.appid
+}]]]></http:query-params>
+				</http:request>
+						<ee:transform doc:name="Transform Message" doc:id="b5b27a82-4d6f-4cb9-812d-39881c9de91a" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"city":vars.scatterRB.city,
+	"min_temp":payload.main.temp_min as Number - 273.15,
+	"max_temp":payload.main.temp_max as Number - 273.15,
+	"humidity":payload.main.humidity
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+			</route>
+			<route>
+				<http:request method="GET" doc:name="request-sbmssf-api" doc:id="870636e2-2576-4e71-aec6-dec5e0fcc711" url="https://jsonplaceholder.typicode.com/todos/"/>
+						<ee:transform doc:name="Transform Message" doc:id="5888fdba-d4aa-4725-a5d7-22ac00f91cc3" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"userdata" : payload
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+			</route>
+			<route>
+				<http:request method="GET" doc:name="request_flights_api" doc:id="e05b2f86-2c56-4f98-af96-af0033be49aa" url="http://training-american-ws.cloudhub.io:80/api/flights"/>
+						<ee:transform doc:name="Transform Message" doc:id="947eef64-0e42-4226-b456-5d4dc67236b1" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"flights":  payload
+	/*
+	"plane" : payload.plane.'type',
+	"date" : payload.departureDate,
+	"origin" : payload.origin,
+	"destination" :  payload.destination,
+	"seats_available" : payload.emptySeats */
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+			</route>
+		</scatter-gather>
+				<ee:transform doc:name="Transform Message" doc:id="30adc755-fd4e-46b3-8600-20ed3ae76562" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+"weather" : payload[0].payload,
+"users" : payload[1].payload,
+"flights" : payload[2].payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="0ec0da02-ac8b-46b1-9200-27cd1d4c50da" />
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="6f0ee220-2b82-41d0-85f2-326bb2353726" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	"scatter" : vars.scatterRB.scatter as String ++ "operations"}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="connect_to_sf" doc:id="dfb252a1-4209-40bc-ad53-57c3a361a474" >
+		<http:listener doc:name="Listener" doc:id="22e117e3-7a25-4363-99e4-a138eff57953" config-ref="HTTP_Listener_config_official" path="/ms2sf"/>
+		<ee:transform doc:name="Transform Message" doc:id="bdc87896-d0bb-4f0b-81a3-fac7350c1575" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<salesforce:create doc:name="Create" doc:id="b34a461e-205d-413e-8fa1-cc96c8ddab78" config-ref="Salesforce_Config_free_trail_head" type="Account"/>
+		<ee:transform doc:name="Transform Message" doc:id="af5655ad-4fcb-48fd-bfe7-b9975ee90564" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="salesForce_leads_object_tracker" doc:id="85dbea1d-5a01-447d-9f5b-06af76ce6613" >
+		<salesforce:modified-object-listener doc:name="On Modified Object" doc:id="8ee3a855-15bb-4d9a-b88a-e0f4f30feb05" config-ref="Salesforce_Config_free_trail_head" objectType="Lead">
+			<scheduling-strategy >
+				<fixed-frequency frequency="1" timeUnit="HOURS"/>
+			</scheduling-strategy>
+		</salesforce:modified-object-listener>
+		<ee:transform doc:name="Transform Message" doc:id="cbdfe8a4-2f6e-490b-a567-50f19032eade" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="024b9206-ca2c-423a-bed8-1daf42f6f58d" message="#[payload]" />
+		<db:insert doc:name="Insert" doc:id="3cda9bd1-6aa3-423e-87b0-d58c73517d93" config-ref="my_store_db_config">
+			<db:sql ><![CDATA[insert into my_store.leads (Name, Company, Status) values (:Name, :Company, :Status)]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	Name : payload.Name,
+	Company : payload.Company,
+	Status : payload.Status
+}]]]></db:input-parameters>
+		</db:insert>
+	</flow>
+	<flow name="salesForce_store__c_object_tracker" doc:id="bf8a7ac7-853e-4ebe-815f-e6cfecd768b3" >
+		<salesforce:modified-object-listener objectType="Store__c" doc:name="On Modified Object" doc:id="44d7dfc2-5536-4fde-994f-5c47f154bae7" config-ref="Salesforce_Config_free_trail_head">
+			<scheduling-strategy >
+				<fixed-frequency frequency="1" timeUnit="HOURS"/>
+			</scheduling-strategy>
+		</salesforce:modified-object-listener>
+		<ee:transform doc:name="Transform Message" doc:id="2b336e09-9b2d-4317-a99c-fe99c299170a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="1d1f1209-359a-4d4a-88ca-0231118970f1" message="#[payload]" />
+		<db:insert doc:name="Insert" doc:id="23990d9a-da37-4be0-8b93-8a5f2c8c7d9f" config-ref="my_offline_db_store">
+			<db:sql ><![CDATA[insert into my_offline_store.store (city, closing_time, state, store_name, timezone) 
+values (:city_c, :closing_time_c, :state_c, :Name, :timezone_c)]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	city_c : payload.city__c,
+	closing_time_c :  payload.closing_time__c as String,
+	state_c : payload.state__c,
+	Name : payload.Name,
+	timezone_c : payload.timezone__c
+}]]]></db:input-parameters>
+		</db:insert>
+		<logger level="INFO" doc:name="Logger" doc:id="08a83c1f-bbd3-41e1-98bc-9e1560fbe951" message="#[payload]"/>
+	</flow>
+	<flow name="my_store_get" doc:id="7ef2a5cc-da0f-479c-bfd6-101a404448c4" >
+		<http:listener doc:name="HTTP_Listener_config_official" doc:id="400fdedb-26fd-4734-9c3f-33d1242a80e8" config-ref="HTTP_Listener_config_official" path="/mule"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="06513124-dedb-45c1-a812-68b0929f1823" >
+			<route >
+				<http:request method="GET" doc:name="getSales_Request" doc:id="15ba9359-e3ec-421c-83ae-afdc01f4ff25" config-ref="HTTP_Request_configuration_my_store" path="/sales" />
+				<ee:transform doc:name="Transform Message" doc:id="c1472228-4e5d-4ae5-b301-dc17dd22c6b9" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"sales_transform_data" : payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+			<route >
+				<http:request method="GET" doc:name="getPeripherals_Request" doc:id="51104bf0-9ac4-4959-abec-68f3db887475" config-ref="HTTP_Request_configuration_my_store" path="/peripherals"/>
+				<ee:transform doc:name="Transform Message" doc:id="026c204d-5bd4-4f7c-9216-6162b903b71a" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"peripherals_transform_data" : payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+			<route >
+				<http:request method="GET" doc:name="getInventory_Request" doc:id="37212fc9-9cff-4afb-929e-02d7fc72b226" config-ref="HTTP_Request_configuration_my_store" path="/inventories"/>
+				<ee:transform doc:name="Transform Message" doc:id="31292a46-7843-4910-b9de-682e4dbe88e8" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"inventory_transform_data" : payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+			<route >
+				<http:request method="GET" doc:name="getProducts_Request" doc:id="640f919a-767d-4831-a084-eebd47c03d6d" config-ref="HTTP_Request_configuration_my_store" path="/products"/>
+				<ee:transform doc:name="Transform Message" doc:id="83b8c78d-c158-45ec-b056-d95c7df05dc3" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"products_transform_data" : payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+			<route >
+				<http:request method="GET" doc:name="getStore_Request" doc:id="88458986-a76c-4e6f-bacd-5d3d97b59813" config-ref="HTTP_Request_configuration_my_store" path="/stores" />
+				<ee:transform doc:name="Transform Message" doc:id="6b98ec08-dcde-49fd-a7de-bdba65b5bb2c" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"store_transform_data" : payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+			<route >
+				<http:request method="GET" doc:name="getStoreperipherals_Request" doc:id="6714e0c9-003e-4277-a6fe-8350abd865e8" config-ref="HTTP_Request_configuration_my_store" path="/storeperipherals" />
+				<ee:transform doc:name="Transform Message" doc:id="f5d05e89-e3f0-488f-9f5a-9e09989755b1" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"storeperipherals_transform_data" : payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="Transform Message" doc:id="2fb2ca5c-93a8-4648-9f52-c3d35c0ebe10" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"stores" : payload[4].payload,
+	"products" : payload[3].payload,
+	"inventory" : payload[2].payload,
+	"storePeripherals" : payload[5].payload,
+	"peripherals" : payload[1].payload,
+	"sales" : payload[0].payload
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="8a7ce12d-bbe7-41cb-87a2-c7e0736b2a7a" />
+	</flow>
+	<flow name="selec_api_get_data_by_id" doc:id="1fab37be-89c3-4400-bdfd-eef2dcd7859b" >
+		<http:listener doc:name="Listener" doc:id="85dea4e4-dd24-404f-a313-fbe9f44bcf80" config-ref="HTTP_Listener_config_official" path="/mule/select"/>
+		<set-variable value="#[payload]" doc:name="select" doc:id="4e7d88ee-feae-4843-bd74-fd6732e791da" variableName="select"/>
+		<choice doc:name="Choice" doc:id="2f0b8668-dde9-4e46-9976-b805043d173d" >
+			<when expression="#[vars.select.api == 'stores']">
+				<http:request method="GET" doc:name="stores" doc:id="793126f8-be12-44ab-bfb0-52f4b153532c" config-ref="HTTP_Request_configuration_my_store" path="/stores/{id}">
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	"id" : vars.select.id
+}]]]></http:uri-params>
+					<http:response-validator >
+						<http:success-status-code-validator values="200..499" />
+					</http:response-validator>
+		</http:request>
+				<choice doc:name="Choice" doc:id="e8575fc1-a1da-4d65-b17e-1ffb01bd5f91" >
+					<when expression='#[attributes.statusCode as String == "200"]' >
+						<ee:transform doc:name="Transform Message" doc:id="fc7d1fb0-a0d2-403a-bcd4-2d72667b7aeb" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</when>
+					<otherwise >
+						<ee:transform doc:name="Transform Message" doc:id="3fdfe3ca-34f6-4694-b565-279976b42ca3" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"backend_error" : "id - " ++ vars.select.id as String ++ " not present in " ++ vars.select.api,
+	"backend_api_status_code" : attributes.statusCode as String,
+	"mule_call" : "successful"
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			</when>
+			<when expression="#[vars.select.api == 'products']">
+				<http:request method="GET" doc:name="products" doc:id="c4236b39-9243-4359-8766-9c6c117b79c7" config-ref="HTTP_Request_configuration_my_store" path="/products/{id}">
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.select.id
+}]]]></http:uri-params>
+				</http:request>
+				<choice doc:name="Choice" doc:id="1af18ed1-8cec-48db-a2f6-b96131b88374" >
+					<when expression='#[attributes.statusCode as String == "200"]' >
+						<ee:transform doc:name="Transform Message" doc:id="01e9e0ee-ed20-4f98-b545-fcfda51d5bf8" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</when>
+					<otherwise >
+						<ee:transform doc:name="Transform Message" doc:id="d881d536-fcae-4b17-be89-4cef57866e05" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"backend_error" : "id - " ++ vars.select.id as String ++ " not present in " ++ vars.select.api,
+	"backend_api_status_code" : attributes.statusCode as String,
+	"mule_call" : "successful"
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			</when>
+			<when expression='#[vars.select.api == "inventories"]'>
+				<http:request method="GET" doc:name="inventories" doc:id="f33af83f-41f3-432f-979c-3721dc4bcd69" config-ref="HTTP_Request_configuration_my_store" path="/inventories/{id}">
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.select.id
+}]]]></http:uri-params>
+				</http:request>
+				<choice doc:name="Choice" doc:id="43824821-97a5-4a83-bf1f-89daf3d0ef81" >
+					<when expression='#[attributes.statusCode as String == "200"]' >
+						<ee:transform doc:name="Transform Message" doc:id="fdfe649d-3d95-4734-9391-73539bff708d" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</when>
+					<otherwise >
+						<ee:transform doc:name="Transform Message" doc:id="36d17323-f20c-49df-b753-aef7b36c1899" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"backend_error" : "id - " ++ vars.select.id as String ++ " not present in " ++ vars.select.api,
+	"backend_api_status_code" : attributes.statusCode as String,
+	"mule_call" : "successful"
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			</when>
+			<when expression="#[vars.select.api == 'peripherals']">
+				<http:request method="GET" doc:name="peripherals" doc:id="fb1e687e-4dd4-49fe-bb2e-50448c4cd3b8" config-ref="HTTP_Request_configuration_my_store" path="/peripherals/{id}">
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.select.id
+}]]]></http:uri-params>
+				</http:request>
+				<choice doc:name="Choice" doc:id="fc505c53-7b4b-4824-9cba-8d2500e3e3dd" >
+					<when expression='#[attributes.statusCode as String == "200"]' >
+						<ee:transform doc:name="Transform Message" doc:id="4cb650ba-557c-4404-816a-cb63a03d1ca4" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</when>
+					<otherwise >
+						<ee:transform doc:name="Transform Message" doc:id="12f2072c-082f-4912-889f-e6dab6186c8c" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"backend_error" : "id - " ++ vars.select.id as String ++ " not present in " ++ vars.select.api,
+	"backend_api_status_code" : attributes.statusCode as String,
+	"mule_call" : "successful"
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			</when>
+			<when expression="#[vars.select.api == 'storeperipherals']">
+				<http:request method="GET" doc:name="storeperipherals" doc:id="92bc066c-c074-4e64-a0c5-895e0f62a062" config-ref="HTTP_Request_configuration_my_store" path="/storeperipherals/{id}">
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.select.id
+}]]]></http:uri-params>
+				</http:request>
+				<choice doc:name="Choice" doc:id="fdc0683d-5aa0-44bf-875d-0870513149fd" >
+					<when expression='#[attributes.statusCode as String == "200"]' >
+						<ee:transform doc:name="Transform Message" doc:id="41cc9916-0a84-4cb9-85bd-4c67005399dd" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</when>
+					<otherwise >
+						<ee:transform doc:name="Transform Message" doc:id="10daf3e8-b11a-4e40-853e-2207259fdd6e" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"backend_error" : "id - " ++ vars.select.id as String ++ " not present in " ++ vars.select.api,
+	"backend_api_status_code" : attributes.statusCode as String,
+	"mule_call" : "successful"
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			</when>
+			<when expression="#[vars.select.api == 'sales']">
+				<http:request method="GET" doc:name="sales" doc:id="72bb48fa-fcc5-4993-ac5c-d6e5fc555512" config-ref="HTTP_Request_configuration_my_store" path="/sales/{id}">
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.select.id
+}]]]></http:uri-params>
+				</http:request>
+				<choice doc:name="Choice" doc:id="a111b813-5bb1-4dc0-8ab3-33037e739389" >
+					<when expression='#[attributes.statusCode as String == "200"]' >
+						<ee:transform doc:name="Transform Message" doc:id="de2abcdf-df56-47e7-971a-3dcda493e2a7" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</when>
+					<otherwise >
+						<ee:transform doc:name="Transform Message" doc:id="6dcda7ed-20e9-4500-84d7-2a5d22a59b1e" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"backend_error" : "id - " ++ vars.select.id as String ++ " not present in " ++ vars.select.api,
+	"backend_api_status_code" : attributes.statusCode as String,
+	"mule_call" : "successful"
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="87570efe-18f1-4773-a3a7-92697a585b62">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+
+	{
+		"choice" : vars.select.api as String ++ " API not found"	
+	}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="store_post" doc:id="a8085a91-2231-48c0-90c2-ff67c5ad265f" >
+		<http:listener doc:name="store_post" doc:id="2416764b-3a9f-4b96-aa21-a54a2313d2f6" config-ref="HTTP_Listener_config_official" path="/mule/store"/>
+		<set-variable value="#[payload]" doc:name="request_body" doc:id="6be29342-45b5-49dd-8241-b72fb1c37a84" variableName="request_body"/>
+		<http:request method="POST" doc:name="Request" doc:id="583c7d04-dea7-45a6-a496-e0a0c4bc8ce4" config-ref="HTTP_Request_configuration_my_store" path="/stores">
+			<http:body ><![CDATA[#[vars.request_body]]]></http:body>
+			<http:response-validator >
+				<http:success-status-code-validator values="200..499" />
+			</http:response-validator>
+		</http:request>
+		<choice doc:name="Choice" doc:id="696ce2b8-2756-4d6f-aeae-30e353f1865f" >
+			<when expression='#[attributes.statusCode as String == "200"]'>
+				<ee:transform doc:name="Transform Message" doc:id="5aa8d0a7-0737-4a52-ae93-5b6ba472f7f4">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="2dc7680b-1e10-4cd8-a7c0-f9cce47b9842" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="products_post" doc:id="e9c76199-cd87-4cf2-8d12-c0df07dd5fe0" >
+		<http:listener doc:name="products_post" doc:id="f3b36ca7-bc5d-431a-a084-6a75bd662d6e" config-ref="HTTP_Listener_config_official" path="/mule/product" />
+		<set-variable value="#[payload]" doc:name="request_body" doc:id="a27d4295-190f-4d63-bc45-d0fe689cc5a5" variableName="request_body" />
+		<http:request method="POST" doc:name="Request" doc:id="6142bf52-d239-45a0-97e0-20dc450b6f84" config-ref="HTTP_Request_configuration_my_store" path="/products" >
+			<http:body ><![CDATA[#[vars.request_body]]]></http:body>
+			<http:response-validator >
+				<http:success-status-code-validator values="200..499" />
+			</http:response-validator>
+		</http:request>
+		<choice doc:name="Choice" doc:id="a015465b-e204-4aaa-8f07-d697411a0fb8" >
+			<when expression='#[attributes.statusCode as String == "200"]' >
+				<ee:transform doc:name="Transform Message" doc:id="886f9e6f-7254-4d56-9247-5d6ad258b942" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="9ae0c94a-86ad-48e6-a6c2-4c9c33ac3892" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="inventories_post" doc:id="573768f0-aab9-4fef-856b-b888d6e7ab5d" >
+		<http:listener doc:name="inventories_post" doc:id="1d8cf75b-f7f5-4236-8d93-03eb25ef2fff" config-ref="HTTP_Listener_config_official" path="/mule/inventory" />
+		<set-variable value="#[payload]" doc:name="request_body" doc:id="3c51a895-0acd-43d0-aee3-cda91ea2954d" variableName="request_body" />
+		<http:request method="POST" doc:name="Request" doc:id="fddb7d8a-d4b8-4a86-8400-fbcf0811b883" config-ref="HTTP_Request_configuration_my_store" path="/inventories" >
+			<http:body ><![CDATA[#[vars.request_body]]]></http:body>
+			<http:response-validator >
+				<http:success-status-code-validator values="200..499" />
+			</http:response-validator>
+		</http:request>
+		<choice doc:name="Choice" doc:id="89f50e90-2786-4503-8cf0-6af9b50237a5" >
+			<when expression='#[attributes.statusCode as String == "200"]' >
+				<ee:transform doc:name="Transform Message" doc:id="bf4342f8-446b-4e05-9b78-1f4c75fbd57f" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="6860bd82-947f-4068-94b8-8206e5b71d01" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="peripherals_post" doc:id="5231d653-7112-4374-b8c7-a022506d080d" >
+		<http:listener doc:name="peripherals_post" doc:id="2c61d198-8366-4de8-9f0d-c3099cb441ac" config-ref="HTTP_Listener_config_official" path="/mule/peripheral" />
+		<set-variable value="#[payload]" doc:name="request_body" doc:id="f7c4ee00-cb91-4f81-91de-0ed811a855ce" variableName="request_body" />
+		<http:request method="POST" doc:name="Request" doc:id="1e4664ae-4d3c-4e9c-a91d-253606bb3026" config-ref="HTTP_Request_configuration_my_store" path="/peripherals" >
+			<http:body ><![CDATA[#[vars.request_body]]]></http:body>
+			<http:response-validator >
+				<http:success-status-code-validator values="200..499" />
+			</http:response-validator>
+		</http:request>
+		<choice doc:name="Choice" doc:id="7d9ce3e8-0232-4dd1-b6f6-305660944f4f" >
+			<when expression='#[attributes.statusCode as String == "200"]' >
+				<ee:transform doc:name="Transform Message" doc:id="5623ae1a-1ce4-4d43-af78-3f9987873ad6" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="33443d4d-4111-4a9c-a4e5-48ece368749c" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="storeperipherals_post" doc:id="bd180bc9-0465-4249-a900-0728b1fa056c" >
+		<http:listener doc:name="storeperipherals_post" doc:id="ad569e29-8553-472b-84a0-af216fb3ba99" config-ref="HTTP_Listener_config_official" path="/mule/storeperipheral" />
+		<set-variable value="#[payload]" doc:name="request_body" doc:id="1abefb72-e2f0-4cc0-b842-c985224a6111" variableName="request_body" />
+		<http:request method="POST" doc:name="Request" doc:id="5bbb3a87-ccb0-4f78-9f90-e5c19ebc8df7" config-ref="HTTP_Request_configuration_my_store" path="/storeperipherals" >
+			<http:body ><![CDATA[#[vars.request_body]]]></http:body>
+			<http:response-validator >
+				<http:success-status-code-validator values="200..499" />
+			</http:response-validator>
+		</http:request>
+		<choice doc:name="Choice" doc:id="90ad275f-6fe2-41be-a9fb-1ef665258646" >
+			<when expression='#[attributes.statusCode as String == "200"]' >
+				<ee:transform doc:name="Transform Message" doc:id="596607d8-b3e5-40db-b0a5-016b6445bd3a" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="d21987ca-2fba-4010-9adc-3559212ec7ae" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="sales_post" doc:id="c0fdd618-662d-4594-af98-2c0ee67d1fae" >
+		<http:listener doc:name="sales_post" doc:id="b090684c-5d57-4ac9-aba6-85477727240d" config-ref="HTTP_Listener_config_official" path="/mule/sales" />
+		<set-variable value="#[payload]" doc:name="request_body" doc:id="c10cca6d-7e64-468d-aa40-fb8bf20bfd24" variableName="request_body" />
+		<http:request method="POST" doc:name="Request" doc:id="99dc9778-c17f-4a25-b6a0-e3ad5f54d71b" config-ref="HTTP_Request_configuration_my_store" path="/sales" >
+			<http:body ><![CDATA[#[vars.request_body]]]></http:body>
+			<http:response-validator >
+				<http:success-status-code-validator values="200..499" />
+			</http:response-validator>
+		</http:request>
+		<choice doc:name="Choice" doc:id="2f1986b5-7af5-4a04-a198-d085202039fd" >
+			<when expression='#[attributes.statusCode as String == "200"]' >
+				<ee:transform doc:name="Transform Message" doc:id="b5ebc9b7-d65c-4ae8-8e5a-1baa5e43609e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="579293de-0766-46ba-a210-d55a35850cae" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="consume_store_id_details" doc:id="7c2d9f18-a898-44b2-9f96-49ebc1b9483e" >
+		<http:listener doc:name="Listener" doc:id="3df72b0e-d79f-4c87-a702-3d1b5a862f99" config-ref="HTTP_Listener_config_official" path="/mystore"/>
+		<set-variable value="#[payload]" doc:name="storeId" doc:id="0996d40d-c166-497f-9b9b-bee6d867dd97" variableName="storeId"/>
+		<logger level="INFO" doc:name="Logger" doc:id="be4e33aa-e450-4b7f-94d6-c1c363ccca91" message="vars.storeId.id"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="bf545cbc-27dd-497c-88f6-a30f91cd4c00" >
+			<route >
+				<http:request method="GET" doc:name="storeId_details" doc:id="ed2eb5d9-cfb3-4476-9ea5-f1c602aabb58" config-ref="HTTP_Request_configuration_my_store" path="/stores/{storeId}">
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	storeId : vars.storeId.sid
+}]]]></http:uri-params>
+				</http:request>
+				<ee:transform doc:name="Transform Message" doc:id="2a372d38-92f9-46c3-85c2-3131512b9a19" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+			<route >
+				<http:request method="GET" doc:name="storeId_inventory_total_count" doc:id="4918edbf-888f-4ba1-9d3b-aefdab8fe509" config-ref="HTTP_Request_configuration_my_store" path="/inventories/count/{storeId}">
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	storeId : vars.storeId.sid
+}]]]></http:uri-params>
+				</http:request>
+				<ee:transform doc:name="Transform Message" doc:id="58c009ba-803d-4af2-aacc-ba4b17b541cd" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+			<route >
+				<http:request method="GET" doc:name="storeId_peripherals_total_count" doc:id="e26bd7d4-fb03-450e-89eb-d6ef77800836" config-ref="HTTP_Request_configuration_my_store" path="storeperipherals/count/{storeId}">
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	storeId : vars.storeId.sid
+}]]]></http:uri-params>
+				</http:request>
+				<ee:transform doc:name="Transform Message" doc:id="285499fb-77a6-4c0a-b488-3ae231e99e90" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+			<route >
+				<http:request method="GET" doc:name="storeId_peripherals_details" doc:id="452af385-11fd-4fed-aa32-9f4b87878a1b" config-ref="HTTP_Request_configuration_my_store" path="/storeperipherals/storeperipheralsdetails/storeid/{storeId}">
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	storeId : vars.storeId.sid
+}]]]></http:uri-params>
+				</http:request>
+				<ee:transform doc:name="Transform Message" doc:id="2b5a9942-2aa6-478a-b249-90e5222743c1" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+			<route >
+				<http:request method="GET" doc:name="storeId_inventory_details" doc:id="5ad6bd91-ff8c-4209-8965-6ceadf1b9746" config-ref="HTTP_Request_configuration_my_store" path="/inventories/storeIdInventory/{storeId}">
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	storeId : vars.storeId.sid
+}]]]></http:uri-params>
+				</http:request>
+				<ee:transform doc:name="Transform Message" doc:id="397e41ee-7f0d-4d7d-9b93-dac1134401fb" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="Transform Message" doc:id="99fa6f6e-25fb-4f5a-863b-5807cd93964b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"storeId_details" : payload[0].payload,	
+	"storeId_inventory_total_count" : payload[1].payload,	
+	"storeId_peripherals_total_count" : payload[2].payload,
+	"storeId_peripherals_details" : payload[3].payload,
+	"storeId_inventory_details" : payload[4].payload,
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="consume_restful_serviceFlow" doc:id="5faadb33-d8df-47ab-9247-484998754eb0" >
+		<http:listener doc:name="Listener_feb_2025" doc:id="71888ca1-dec2-4690-9093-9a46f09442ee" config-ref="HTTP_Listener_config_official" path="/myStoreModel" allowedMethods="POST"/>
+		<set-variable value="#[payload]" doc:name="storeModelId" doc:id="78dbf2e2-b12f-479d-944a-23df26c5c273" variableName="storeModelId"/>
+		<logger level="INFO" doc:name="Logger" doc:id="b746916c-b4a8-4f69-bf15-900e0acb0303" message="vars.storeModelId.id"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="c595f13c-2a94-49b5-9640-a166638ae26b" >
+			<route >
+				<http:request method="POST" doc:name="storeModel" doc:id="eaacc92a-f07e-4c71-8be9-5d1c5b69e49a" config-ref="HTTP_Request_configuration_my_store" path="/storesModel/{id}">
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	id : vars.storeModelId.id
+}]]]></http:uri-params>
+				</http:request>
+			</route>
+			<route >
+				<http:request method="POST" doc:name="inventoryModel" doc:id="ddaf5941-a53a-40f1-ac48-5b006dcb57e7" config-ref="HTTP_Request_configuration_my_store" path="/inventoryModel/{storeModelId}">
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	storeModelId : vars.storeModelId.id
+}]]]></http:uri-params>
+				</http:request>
+			</route>
+			<route >
+				<http:request method="POST" doc:name="storeLayoutModel" doc:id="ac2d1b3a-136d-4983-ace2-fc98c264c94a" config-ref="HTTP_Request_configuration_my_store" path="/storeLayoutModel/{storeModelId}">
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	storeModelId : vars.storeModelId.id
+}]]]></http:uri-params>
+				</http:request>
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="Transform Message" doc:id="3f69b415-8759-4121-a7ac-a9c71fd6a7ae" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="store-layout-save-area" doc:id="f982c0d1-07f9-407a-9684-e35c2d003bd6" >
+		<http:listener doc:name="Listener" doc:id="1bb3b506-01f7-459c-84fd-b14333229a15" config-ref="HTTP_Listener_config_official" path="/store-layout-save-area" allowedMethods="POST"/>
+		<set-variable value="#[payload]" doc:name="saveArea" doc:id="a8915527-f80a-4ce5-9fa3-57293ad091c9" variableName="saveArea"/>
+		<logger level="INFO" doc:name="Logger" doc:id="df167466-3edf-4890-99ad-29f4d5cf014f" message="vars.saveArea"/>
+		<http:request method="POST" doc:name="Request" doc:id="e35c5770-f76e-457f-ae33-04785555374a" config-ref="HTTP_Request_configuration_my_store" path="/storeLayoutModel/store-layout-save-map-db"/>
+		<ee:transform doc:name="Transform Message" doc:id="9e88cb2d-2ef1-441f-a980-490d6d410e3a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	
+</mule>
